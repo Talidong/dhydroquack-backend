@@ -101,6 +101,50 @@ exports.register = async (req, res) => {
   }
 };
 
+// ─── CHANGE PASSWORD ───────────────────────────────────────────────────────
+// POST /api/auth/change-password
+// Body: { email, currentPassword, newPassword }
+exports.changePassword = async (req, res) => {
+  try {
+    const { email, currentPassword, newPassword } = req.body;
+
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Email, current password, and new password are required' });
+    }
+
+    const [rows] = await db.query(
+      'SELECT user_id, password FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = rows[0];
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await db.query(
+      'UPDATE users SET password = ? WHERE user_id = ?',
+      [hashedPassword, user.user_id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Password updated successfully',
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Database error' });
+  }
+};
+
 
 // ─── SEND OTP (para sa Change Email / Change Phone verification) ──────────────
 // POST /api/auth/send-otp
