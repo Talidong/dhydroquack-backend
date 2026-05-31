@@ -13,7 +13,7 @@ app.use(express.json());
 const userRoutes = require('./routes/users');
 const plantRoutes = require('./routes/plants');
 const deviceRoutes = require('./routes/devices');
-const sensorRoutes = require('./routes/sensors');
+const sensorRoutes = require('./routes/sensorsRoutes');
 const notificationRoutes = require('./routes/notifications');
 const authRoutes = require('./routes/authRoutes'); // ← DAGDAG
 const teamRoutes = require('./routes/teams'); // ← DAGDAG
