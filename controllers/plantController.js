@@ -86,6 +86,11 @@ exports.updatePlant = async (req, res) => {
   try {
     const { team_id, plant_name, date_planted, growth_stage, image_url } = req.body;
 
+    // ← DAGDAG — i-format ang date
+    const formattedDate = date_planted
+      ? new Date(date_planted).toISOString().split('T')[0]
+      : null;
+
     const [plant] = await db.query(
       'SELECT plant_id FROM plants WHERE plant_id = ?', [req.params.id]
     );
@@ -95,7 +100,7 @@ exports.updatePlant = async (req, res) => {
 
     await db.query(
       'UPDATE plants SET team_id = ?, plant_name = ?, date_planted = ?, growth_stage = ?, image_url = ? WHERE plant_id = ?',
-      [team_id, plant_name, date_planted, growth_stage, image_url || null, req.params.id]
+      [team_id, plant_name, formattedDate, growth_stage, image_url || null, req.params.id]
     );
     res.json({ success: true, message: 'Plant updated successfully' });
   } catch (err) {
