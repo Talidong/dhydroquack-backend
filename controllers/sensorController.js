@@ -2,31 +2,37 @@
 const db = require('../config/database');
 
 // ─── GET LATEST READING ───────────────────────────────────
-// Endpoint: GET /api/sensors/latest
-// Ginagamit: para sa current readings cards sa Analytics screen
-// Ibinabalik: pinakabagong sensor reading
+// Endpoint: GET /api/sensors/latest?team_id=1
 const getLatestReading = async (req, res) => {
   try {
+    const { team_id } = req.query;
+
+    if (!team_id) {
+      return res.status(400).json({ message: 'team_id is required.' });
+    }
+
     const [rows] = await db.query(
       `SELECT * FROM sensor_readings 
+       WHERE team_id = ?
        ORDER BY timestamp DESC 
-       LIMIT 1`
+       LIMIT 1`,
+      [team_id]
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ message: 'No readings found.' });
+      return res.status(404).json({ message: 'No readings found for this team.' });
     }
 
-    // I-format ang data para madaling gamitin sa frontend
     const reading = rows[0];
     res.json({
-      readingId: reading.reading_id,
-      timestamp: reading.timestamp,
-      waterLevel: parseFloat(reading.water_level),
+      readingId:   reading.reading_id,
+      teamId:      reading.team_id,
+      timestamp:   reading.timestamp,
+      waterLevel:  parseFloat(reading.water_level),
       temperature: parseFloat(reading.temperature),
-      humidity: parseFloat(reading.humidity),
-      phLevel: parseFloat(reading.ph_level),
-      nutrient: parseFloat(reading.nutrient_ppm),
+      humidity:    parseFloat(reading.humidity),
+      phLevel:     parseFloat(reading.ph_level),
+      nutrient:    parseFloat(reading.nutrient_ppm),
     });
   } catch (error) {
     console.error('getLatestReading error:', error);
@@ -35,27 +41,28 @@ const getLatestReading = async (req, res) => {
 };
 
 // ─── GET HISTORICAL DATA ──────────────────────────────────
-// Endpoint: GET /api/sensors/history?limit=7
-// Ginagamit: para sa line charts sa Analytics screen
-// Ibinabalik: last N readings para sa graph
+// Endpoint: GET /api/sensors/history?team_id=1&limit=7
 const getHistoricalReadings = async (req, res) => {
   try {
-    // Pwedeng mag-specify ng limit sa query param, default 7
+    const { team_id } = req.query;
     const limit = parseInt(req.query.limit) || 7;
+
+    if (!team_id) {
+      return res.status(400).json({ message: 'team_id is required.' });
+    }
 
     const [rows] = await db.query(
       `SELECT * FROM sensor_readings 
+       WHERE team_id = ?
        ORDER BY timestamp DESC 
        LIMIT ?`,
-      [limit]
+      [team_id, limit]
     );
 
-    // Reverse para maging chronological order (oldest to newest)
     const reversed = rows.reverse();
 
-    // I-format para sa chart — kailangan ng labels at data arrays
     const result = {
-      labels: reversed.map((r) => {
+      labels:      reversed.map((r) => {
         const date = new Date(r.timestamp);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       }),
@@ -75,25 +82,25 @@ const getHistoricalReadings = async (req, res) => {
 
 // ─── INSERT NEW READING ───────────────────────────────────
 // Endpoint: POST /api/sensors/readings
-// Ginagamit: ng hardware/sensor para mag-save ng bagong data
-// Body: { waterLevel, temperature, humidity, phLevel, nutrient }
+// Ginagamit ng ESP32 para mag-send ng sensor data
+// Body: { team_id, waterLevel, temperature, humidity, phLevel, nutrient }
 const insertReading = async (req, res) => {
   try {
-    const { waterLevel, temperature, humidity, phLevel, nutrient } = req.body;
+    const { team_id, waterLevel, temperature, humidity, phLevel, nutrient } = req.body;
 
-    // Basic validation
     if (
+      !team_id ||
       waterLevel === undefined || temperature === undefined ||
       humidity === undefined || phLevel === undefined || nutrient === undefined
     ) {
-      return res.status(400).json({ message: 'All sensor values are required.' });
+      return res.status(400).json({ message: 'team_id and all sensor values are required.' });
     }
 
     await db.query(
       `INSERT INTO sensor_readings 
-       (water_level, temperature, humidity, ph_level, nutrient_ppm) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [waterLevel, temperature, humidity, phLevel, nutrient]
+       (team_id, water_level, temperature, humidity, ph_level, nutrient_ppm) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [team_id, waterLevel, temperature, humidity, phLevel, nutrient]
     );
 
     res.status(201).json({ message: 'Reading saved successfully.' });
@@ -103,12 +110,20 @@ const insertReading = async (req, res) => {
   }
 };
 
-// ─── GET ALL DEVICE CONTROLS ──────────────────────────────
-// Endpoint: GET /api/sensors/controls
-// Ginagamit: para makita ang status ng bawat device
+// ─── GET DEVICE CONTROLS BY TEAM ─────────────────────────
+// Endpoint: GET /api/sensors/controls?team_id=1
 const getDeviceControls = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM device_controls');
+    const { team_id } = req.query;
+
+    if (!team_id) {
+      return res.status(400).json({ message: 'team_id is required.' });
+    }
+
+    const [rows] = await db.query(
+      'SELECT * FROM device_controls WHERE team_id = ?',
+      [team_id]
+    );
     res.json(rows);
   } catch (error) {
     console.error('getDeviceControls error:', error);
@@ -118,7 +133,6 @@ const getDeviceControls = async (req, res) => {
 
 // ─── UPDATE DEVICE CONTROL ────────────────────────────────
 // Endpoint: PUT /api/sensors/controls/:id
-// Ginagamit: para i-on/off ang device
 // Body: { status } → 1 = ON, 0 = OFF
 const updateDeviceControl = async (req, res) => {
   try {
