@@ -54,15 +54,15 @@ exports.getPlantById = async (req, res) => {
 // Create plant
 exports.createPlant = async (req, res) => {
   try {
-    const { team_id, user_id, plant_name, date_planted, growth_stage } = req.body;
+    const { team_id, user_id, plant_name, date_planted, growth_stage, image_url } = req.body;
 
     if (!team_id || !plant_name || !date_planted) {
       return res.status(400).json({ error: 'team_id, plant_name, and date_planted are required.' });
     }
 
     const [result] = await db.query(
-      'INSERT INTO plants (team_id, user_id, plant_name, date_planted, growth_stage) VALUES (?, ?, ?, ?, ?)',
-      [team_id, user_id || null, plant_name, date_planted, growth_stage || 'Seedling']
+      'INSERT INTO plants (team_id, user_id, plant_name, date_planted, growth_stage, image_url) VALUES (?, ?, ?, ?, ?, ?)',
+      [team_id, user_id || null, plant_name, date_planted, growth_stage || 'Seedling', image_url || null]
     );
 
     res.status(201).json({
@@ -72,6 +72,7 @@ exports.createPlant = async (req, res) => {
       plant_name,
       date_planted,
       growth_stage: growth_stage || 'Seedling',
+      image_url: image_url || null,
       message: 'Plant added successfully',
     });
   } catch (err) {
