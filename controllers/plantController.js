@@ -1,9 +1,15 @@
+// backend/controllers/plantController.js
 const db = require('../config/database');
 
-// Get all plants
+// Get all plants (with team name)
 exports.getAllPlants = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM plants ORDER BY plant_id DESC');
+    const [rows] = await db.query(`
+      SELECT p.*, t.team_name 
+      FROM plants p
+      LEFT JOIN teams t ON p.team_id = t.team_id
+      ORDER BY p.plant_id DESC
+    `);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -11,13 +17,16 @@ exports.getAllPlants = async (req, res) => {
   }
 };
 
-// Get plants by user ID
-exports.getPlantsByUser = async (req, res) => {
+// Get plants by team ID
+exports.getPlantsByTeam = async (req, res) => {
   try {
-    const [rows] = await db.query(
-      'SELECT * FROM plants WHERE user_id = ? ORDER BY plant_id DESC',
-      [req.params.userId]
-    );
+    const [rows] = await db.query(`
+      SELECT p.*, t.team_name 
+      FROM plants p
+      LEFT JOIN teams t ON p.team_id = t.team_id
+      WHERE p.team_id = ?
+      ORDER BY p.plant_id DESC
+    `, [req.params.teamId]);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -28,7 +37,12 @@ exports.getPlantsByUser = async (req, res) => {
 // Get plant by ID
 exports.getPlantById = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM plants WHERE plant_id = ?', [req.params.id]);
+    const [rows] = await db.query(`
+      SELECT p.*, t.team_name 
+      FROM plants p
+      LEFT JOIN teams t ON p.team_id = t.team_id
+      WHERE p.plant_id = ?
+    `, [req.params.id]);
     if (rows.length === 0) return res.status(404).json({ error: 'Plant not found' });
     res.json(rows[0]);
   } catch (err) {
@@ -40,28 +54,25 @@ exports.getPlantById = async (req, res) => {
 // Create plant
 exports.createPlant = async (req, res) => {
   try {
-    const { user_id, group_name, plant_name, date_planted, growth_stage } = req.body;
+    const { team_id, user_id, plant_name, date_planted, growth_stage } = req.body;
 
-    // Check if user exists before inserting (avoid FK constraint crash)
-    const [user] = await db.query('SELECT user_id FROM users WHERE user_id = ?', [user_id]);
-    if (user.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    if (!team_id || !plant_name || !date_planted) {
+      return res.status(400).json({ error: 'team_id, plant_name, and date_planted are required.' });
     }
 
     const [result] = await db.query(
-      'INSERT INTO plants (user_id, group_name, plant_name, date_planted, growth_stage) VALUES (?, ?, ?, ?, ?)',
-      [user_id, group_name, plant_name, date_planted, growth_stage]
+      'INSERT INTO plants (team_id, user_id, plant_name, date_planted, growth_stage) VALUES (?, ?, ?, ?, ?)',
+      [team_id, user_id || null, plant_name, date_planted, growth_stage || 'Seedling']
     );
-    
-    // Mas maganda kung kumpleto ang ibabalik na detalye para magamit agad ng frontend components nina Saulong
-    res.status(201).json({ 
-      plant_id: result.insertId, 
+
+    res.status(201).json({
+      plant_id: result.insertId,
+      team_id,
       user_id,
-      group_name,
-      plant_name, 
-      date_planted, 
-      growth_stage,
-      message: 'Plant added successfully'
+      plant_name,
+      date_planted,
+      growth_stage: growth_stage || 'Seedling',
+      message: 'Plant added successfully',
     });
   } catch (err) {
     console.error(err);
@@ -72,17 +83,16 @@ exports.createPlant = async (req, res) => {
 // Update plant
 exports.updatePlant = async (req, res) => {
   try {
-    const { group_name, plant_name, date_planted, growth_stage } = req.body;
+    const { team_id, plant_name, date_planted, growth_stage } = req.body;
 
-    // Check if plant exists
     const [plant] = await db.query('SELECT plant_id FROM plants WHERE plant_id = ?', [req.params.id]);
     if (plant.length === 0) {
       return res.status(404).json({ error: 'Plant not found' });
     }
 
     await db.query(
-      'UPDATE plants SET group_name = ?, plant_name = ?, date_planted = ?, growth_stage = ? WHERE plant_id = ?',
-      [group_name, plant_name, date_planted, growth_stage, req.params.id]
+      'UPDATE plants SET team_id = ?, plant_name = ?, date_planted = ?, growth_stage = ? WHERE plant_id = ?',
+      [team_id, plant_name, date_planted, growth_stage, req.params.id]
     );
     res.json({ success: true, message: 'Plant updated successfully' });
   } catch (err) {
