@@ -1,7 +1,7 @@
 const db = require('../config/database');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
-
+const jwt = require('jsonwebtoken');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -35,8 +35,16 @@ exports.login = async (req, res) => {
     if (!isMatch)
       return res.status(401).json({ error: 'Invalid email or password' });
 
+    // ← DAGDAG — Generate JWT token
+    const token = jwt.sign(
+      { user_id: user.user_id, role: user.role, team_id: user.team_id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.json({
       success: true,
+      token, // ← DAGDAG
       user: {
         user_id: user.user_id,
         full_name: user.full_name,
@@ -51,7 +59,6 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: 'Database error' });
   }
 };
-
 // REGISTER
 exports.register = async (req, res) => {
   try {
