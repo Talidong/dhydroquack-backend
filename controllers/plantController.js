@@ -83,16 +83,18 @@ exports.createPlant = async (req, res) => {
 // Update plant
 exports.updatePlant = async (req, res) => {
   try {
-    const { team_id, plant_name, date_planted, growth_stage } = req.body;
+    const { team_id, plant_name, date_planted, growth_stage, image_url } = req.body;
 
-    const [plant] = await db.query('SELECT plant_id FROM plants WHERE plant_id = ?', [req.params.id]);
+    const [plant] = await db.query(
+      'SELECT plant_id FROM plants WHERE plant_id = ?', [req.params.id]
+    );
     if (plant.length === 0) {
       return res.status(404).json({ error: 'Plant not found' });
     }
 
     await db.query(
-      'UPDATE plants SET team_id = ?, plant_name = ?, date_planted = ?, growth_stage = ? WHERE plant_id = ?',
-      [team_id, plant_name, date_planted, growth_stage, req.params.id]
+      'UPDATE plants SET team_id = ?, plant_name = ?, date_planted = ?, growth_stage = ?, image_url = ? WHERE plant_id = ?',
+      [team_id, plant_name, date_planted, growth_stage, image_url || null, req.params.id]
     );
     res.json({ success: true, message: 'Plant updated successfully' });
   } catch (err) {
