@@ -1,5 +1,5 @@
 // backend/controllers/sensorController.js
-const db = require('../config/db');
+const db = require('../config/database');
 
 // ─── GET LATEST READING ───────────────────────────────────
 // Endpoint: GET /api/sensors/latest
