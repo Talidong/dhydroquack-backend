@@ -16,8 +16,12 @@ const deviceRoutes = require('./routes/devices');
 const sensorRoutes = require('./routes/sensors');
 const notificationRoutes = require('./routes/notifications');
 const authRoutes = require('./routes/authRoutes'); // ← DAGDAG
+const teamRoutes = require('./routes/teams'); // ← DAGDAG
+const adminRoutes = require('./routes/admin');
 
 // 3. Bind sa URL endpoints
+app.use('/api/admin', adminRoutes);
+app.use('/api/teams', teamRoutes);  
 app.use('/api/users', userRoutes);
 app.use('/api/plants', plantRoutes);
 app.use('/api/devices', deviceRoutes);
